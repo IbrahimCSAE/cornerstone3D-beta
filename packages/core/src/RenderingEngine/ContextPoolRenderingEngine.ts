@@ -79,20 +79,12 @@ class ContextPoolRenderingEngine extends BaseRenderingEngine {
 
     element.tabIndex = -1;
 
-    // Get viewport dimensions from canvas
-    const viewportCanvas = canvas as HTMLCanvasElement;
-    const width = viewportCanvas.width || viewportCanvas.clientWidth;
-    const height = viewportCanvas.height || viewportCanvas.clientHeight;
-
-    // Update the viewport size in the context pool
-    this.contextPool.updateViewportSize(viewportId, width, height);
-
     // Assign viewport to a context
-    // Stack viewports get assigned based on size similarity, all others use context 0
+    // Stack viewports get distributed across contexts, all others use context 0
     let contextIndex = 0;
     if (type === ViewportType.STACK) {
-      // Find the best context based on viewport size
-      contextIndex = this.contextPool.findBestContextForSize(width, height);
+      const contexts = this.contextPool.getAllContexts();
+      contextIndex = this._viewports.size % contexts.length;
     }
     this.contextPool.assignViewportToContext(viewportId, contextIndex);
 
@@ -344,8 +336,7 @@ class ContextPoolRenderingEngine extends BaseRenderingEngine {
     this._resizeOffScreenCanvasForViewport(
       viewport.canvas,
       offScreenCanvasContainer,
-      offscreenMultiRenderWindow,
-      viewport.id
+      offscreenMultiRenderWindow
     );
 
     const renderer = offscreenMultiRenderWindow.getRenderer(viewport.id);
@@ -396,8 +387,7 @@ class ContextPoolRenderingEngine extends BaseRenderingEngine {
   private _resizeOffScreenCanvasForViewport(
     viewportCanvas: HTMLCanvasElement,
     offScreenCanvasContainer: HTMLDivElement,
-    offscreenMultiRenderWindow: VtkOffscreenMultiRenderWindow,
-    viewportId: string
+    offscreenMultiRenderWindow: VtkOffscreenMultiRenderWindow
   ): void {
     const offScreenCanvasWidth = viewportCanvas.width;
     const offScreenCanvasHeight = viewportCanvas.height;
@@ -422,50 +412,6 @@ class ContextPoolRenderingEngine extends BaseRenderingEngine {
     offScreenCanvasContainer.width = offScreenCanvasWidth;
     // @ts-expect-error
     offScreenCanvasContainer.height = offScreenCanvasHeight;
-
-    // Update viewport size tracking when we resize
-    this.contextPool.updateViewportSize(
-      viewportId,
-      offScreenCanvasWidth,
-      offScreenCanvasHeight
-    );
-
-    const currentContext =
-      this.contextPool.getContextIndexForViewport(viewportId);
-
-    const bestContext = this.contextPool.findBestContextForSize(
-      offScreenCanvasWidth,
-      offScreenCanvasHeight
-    );
-
-    // If a better context is found, reassign the viewport
-    if (currentContext !== undefined && bestContext !== currentContext) {
-      const viewport = this._viewports.get(viewportId);
-      if (viewport && viewport.type === ViewportType.STACK) {
-        console.log(
-          `Reassigning viewport ${viewportId} from context ${currentContext} to ${bestContext} due to size change`
-        );
-
-        const oldContextData =
-          this.contextPool.getContextByIndex(currentContext);
-        if (oldContextData) {
-          const { context: oldContext } = oldContextData;
-          oldContext.removeRenderer(viewportId);
-        }
-
-        this.contextPool.assignViewportToContext(viewportId, bestContext);
-
-        const newContextData = this.contextPool.getContextByIndex(bestContext);
-        if (newContextData) {
-          const { context: newContext } = newContextData;
-          newContext.addRenderer({
-            viewport: [0, 0, 1, 1],
-            id: viewportId,
-            background: viewport.defaultOptions?.background || [0, 0, 0],
-          });
-        }
-      }
-    }
 
     offscreenMultiRenderWindow.resize();
   }
