@@ -95,6 +95,13 @@ class ContextPoolRenderingEngine extends BaseRenderingEngine {
       canvas.height
     );
 
+    // Track viewport size
+    this.contextPool.updateViewportSize(
+      viewportId,
+      canvas.width,
+      canvas.height
+    );
+
     // Get the context and add the renderer
     const contextData = this.contextPool.getContextByIndex(contextIndex);
 
