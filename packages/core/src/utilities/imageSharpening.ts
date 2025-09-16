@@ -38,44 +38,76 @@ function applySharpeningFilter({
   // Create output data
   const outputData = new Float32Array(data.length);
 
-  // 2D Laplacian kernel for edge detection
-  // Standard 3x3 Laplacian filter
-  const laplacianKernel = [0, 1, 0, 1, -4, 1, 0, 1, 0];
+  // Optimized: Pre-calculate strides for faster indexing
+  const xStride = numComponents;
+  const yStride = dims[0] * xStride;
+  const zStride = dims[1] * yStride;
 
-  const kernelSize = 3;
-  const kernelOffset = Math.floor(kernelSize / 2);
-
-  // Apply Laplacian filter and edge enhancement
+  // Process interior pixels (no boundary checks needed)
   for (let z = 0; z < dims[2]; z++) {
-    for (let y = 0; y < dims[1]; y++) {
-      for (let x = 0; x < dims[0]; x++) {
-        for (let c = 0; c < numComponents; c++) {
-          const idx = ((z * dims[1] + y) * dims[0] + x) * numComponents + c;
-          const originalValue = data[idx];
+    const zOffset = z * zStride;
 
-          let laplacianValue = 0;
+    // Handle edges separately to avoid boundary checks in main loop
+    for (let y = 1; y < dims[1] - 1; y++) {
+      const yOffset = zOffset + y * yStride;
 
-          // 2D convolution with Laplacian kernel
-          let kernelIdx = 0;
-          for (let ky = -kernelOffset; ky <= kernelOffset; ky++) {
-            for (let kx = -kernelOffset; kx <= kernelOffset; kx++) {
-              const nx = x + kx;
-              const ny = y + ky;
+      for (let x = 1; x < dims[0] - 1; x++) {
+        const xOffset = yOffset + x * xStride;
 
-              if (nx >= 0 && nx < dims[0] && ny >= 0 && ny < dims[1]) {
-                const nIdx =
-                  ((z * dims[1] + ny) * dims[0] + nx) * numComponents + c;
-                const kernelValue = laplacianKernel[kernelIdx];
-                laplacianValue += data[nIdx] * kernelValue;
-              }
-              kernelIdx++;
-            }
+        // Unrolled component loop for better performance
+        if (numComponents === 1) {
+          // Most common case: grayscale
+          const idx = xOffset;
+          const center = data[idx];
+
+          // Optimized Laplacian calculation (only non-zero kernel values)
+          const laplacian =
+            data[idx - yStride] + // top
+            data[idx - xStride] + // left
+            data[idx + xStride] + // right
+            data[idx + yStride] - // bottom
+            4 * center; // center
+
+          outputData[idx] = center - laplacian * intensity;
+        } else {
+          // Multi-component case
+          for (let c = 0; c < numComponents; c++) {
+            const idx = xOffset + c;
+            const center = data[idx];
+
+            const laplacian =
+              data[idx - yStride] +
+              data[idx - xStride] +
+              data[idx + xStride] +
+              data[idx + yStride] -
+              4 * center;
+
+            outputData[idx] = center - laplacian * intensity;
           }
-
-          // Apply edge enhancement: original - (laplacian * intensity)
-          // This enhances edges by subtracting the detected edges from the original
-          outputData[idx] = originalValue - laplacianValue * intensity;
         }
+      }
+    }
+
+    // Handle boundary pixels (copy original values or apply simpler filter)
+    // Top and bottom rows
+    for (let x = 0; x < dims[0]; x++) {
+      const topIdx = zOffset + x * xStride;
+      const bottomIdx = zOffset + (dims[1] - 1) * yStride + x * xStride;
+
+      for (let c = 0; c < numComponents; c++) {
+        outputData[topIdx + c] = data[topIdx + c];
+        outputData[bottomIdx + c] = data[bottomIdx + c];
+      }
+    }
+
+    // Left and right columns (excluding corners already handled)
+    for (let y = 1; y < dims[1] - 1; y++) {
+      const leftIdx = zOffset + y * yStride;
+      const rightIdx = leftIdx + (dims[0] - 1) * xStride;
+
+      for (let c = 0; c < numComponents; c++) {
+        outputData[leftIdx + c] = data[leftIdx + c];
+        outputData[rightIdx + c] = data[rightIdx + c];
       }
     }
   }
