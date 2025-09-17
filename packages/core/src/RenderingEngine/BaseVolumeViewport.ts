@@ -65,20 +65,17 @@ import Viewport from './Viewport';
 import type { vtkSlabCamera as vtkSlabCameraType } from './vtkClasses/vtkSlabCamera';
 import vtkSlabCamera from './vtkClasses/vtkSlabCamera';
 import getVolumeViewportScrollInfo from '../utilities/getVolumeViewportScrollInfo';
-import { actorIsA, isImageActor } from '../utilities/actorCheck';
+import { actorIsA } from '../utilities/actorCheck';
 import snapFocalPointToSlice from '../utilities/snapFocalPointToSlice';
 import getVoiFromSigmoidRGBTransferFunction from '../utilities/getVoiFromSigmoidRGBTransferFunction';
 import isEqual, { isEqualAbs, isEqualNegative } from '../utilities/isEqual';
 import applyPreset from '../utilities/applyPreset';
-import imageIdToURI from '../utilities/imageIdToURI';
 import uuidv4 from '../utilities/uuidv4';
 import * as metaData from '../metaData';
 import { getCameraVectors } from './helpers/getCameraVectors';
 import { isContextPoolRenderingEngine } from './helpers/isContextPoolRenderingEngine';
 import type vtkRenderer from '@kitware/vtk.js/Rendering/Core/Renderer';
 import mprCameraValues from '../constants/mprCameraValues';
-import { setConfiguration, getConfiguration } from '@cornerstonejs/core';
-import type { Types } from '@cornerstonejs/core';
 import { createSharpeningRenderPass } from './renderPasses';
 /**
  * Abstract base class for volume viewports. VolumeViewports are used to render
@@ -92,7 +89,7 @@ import { createSharpeningRenderPass } from './renderPasses';
 abstract class BaseVolumeViewport extends Viewport {
   useCPURendering = false;
   private _FrameOfReferenceUID: string;
-  private sharpening: { enabled: boolean; intensity?: number };
+  private sharpening: number = 0;
 
   protected initialTransferFunctionNodes: TransferFunctionNodes;
   // Viewport Properties
@@ -1050,14 +1047,19 @@ abstract class BaseVolumeViewport extends Viewport {
    * Sets the sharpening for the current viewport.
    * @param sharpening - The sharpening configuration to use.
    */
-  private setSharpening = (sharpening: {
-    enabled: boolean;
-    intensity?: number;
-  }): void => {
+  private setSharpening = (sharpening: number): void => {
     // Store sharpening settings directly on the class
     this.sharpening = sharpening;
     this.render();
   };
+
+  /**
+   * Check if custom render passes should be used for this viewport.
+   * @returns True if custom render passes should be used, false otherwise
+   */
+  protected shouldUseCustomRenderPass(): boolean {
+    return this.sharpening > 0 && !this.useCPURendering;
+  }
 
   /**
    * Get render passes for this viewport.
@@ -1065,11 +1067,7 @@ abstract class BaseVolumeViewport extends Viewport {
    * @returns Array of VTK render passes or null if no custom passes are needed
    */
   public getRenderPasses = () => {
-    if (
-      !this.sharpening?.enabled ||
-      this.sharpening.intensity <= 0 ||
-      this.useCPURendering
-    ) {
+    if (!this.shouldUseCustomRenderPass()) {
       return null;
     }
 

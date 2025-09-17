@@ -22,10 +22,5 @@ export interface ViewportProperties {
   sampleDistanceMultiplier?: number;
 
   /** Image sharpening settings */
-  sharpening?: {
-    /** Enable/disable sharpening */
-    enabled: boolean;
-    /** Sharpening intensity (0-1, where 0 is no sharpening, 1 is maximum) */
-    intensity?: number;
-  };
+  sharpening?: number;
 }

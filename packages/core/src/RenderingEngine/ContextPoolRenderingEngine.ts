@@ -408,7 +408,7 @@ class ContextPoolRenderingEngine extends BaseRenderingEngine {
       renderer.setDraw(false);
     });
 
-    if (viewportRenderPasses) {
+    if (originalRenderPasses) {
       view.setRenderPasses(originalRenderPasses);
     }
 

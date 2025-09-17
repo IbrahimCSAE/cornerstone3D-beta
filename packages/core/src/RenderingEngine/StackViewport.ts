@@ -100,8 +100,6 @@ import { adjustInitialViewUp } from '../utilities/adjustInitialViewUp';
 import { isContextPoolRenderingEngine } from './helpers/isContextPoolRenderingEngine';
 import { createSharpeningRenderPass } from './renderPasses';
 
-const EPSILON = 1; // Slice Thickness
-
 export interface ImageDataMetaData {
   bitsAllocated: number;
   numberOfComponents: number;
@@ -168,7 +166,7 @@ class StackViewport extends Viewport {
   private colormap: ColormapPublic | CPUFallbackColormapData;
   private voiRange: VOIRange;
   private voiUpdatedWithSetProperties = false;
-  private sharpening: { enabled: boolean; intensity?: number };
+  private sharpening: number = 0;
   private VOILUTFunction: VOILUTFunctionType;
   //
   private invert = false;
@@ -435,10 +433,7 @@ class StackViewport extends Viewport {
    * Sets the sharpening for the current viewport.
    * @param sharpening - The sharpening configuration to use.
    */
-  private setSharpening = (sharpening: {
-    enabled: boolean;
-    intensity?: number;
-  }): void => {
+  private setSharpening = (sharpening: number): void => {
     // Store sharpening settings directly on the class
     this.sharpening = sharpening;
 
@@ -446,16 +441,20 @@ class StackViewport extends Viewport {
   };
 
   /**
+   * Check if custom render passes should be used for this viewport.
+   * @returns True if custom render passes should be used, false otherwise
+   */
+  protected shouldUseCustomRenderPass(): boolean {
+    return this.sharpening > 0 && !this.useCPURendering;
+  }
+
+  /**
    * Get render passes for this viewport.
    * If sharpening is enabled, returns appropriate render passes.
    * @returns Array of VTK render passes or null if no custom passes are needed
    */
   public getRenderPasses = () => {
-    if (
-      !this.sharpening?.enabled ||
-      this.sharpening.intensity <= 0 ||
-      this.useCPURendering
-    ) {
+    if (!this.shouldUseCustomRenderPass()) {
       return null;
     }
 
@@ -2248,7 +2247,7 @@ class StackViewport extends Viewport {
     };
     triggerEvent(this.element, Events.PRE_STACK_NEW_IMAGE, eventDetail);
 
-    return this.imagesLoader.loadImages([imageId], this).then((v) => {
+    return this.imagesLoader.loadImages([imageId], this).then(() => {
       return imageId;
     });
   }
@@ -3201,7 +3200,7 @@ class StackViewport extends Viewport {
         return true;
       }
       viewRef.referencedImageURI ||= imageIdToURI(referencedImageId);
-      const { referencedImageURI: referencedImageURI } = viewRef;
+      const { referencedImageURI } = viewRef;
       const foundSliceIndex = this.imageKeyToIndexMap.get(referencedImageURI);
       if (options.asOverlay) {
         const matchedImageId = this.matchImagesForOverlay(
@@ -3313,7 +3312,7 @@ class StackViewport extends Viewport {
     }
     const { referencedImageId } = viewRef;
     viewRef.referencedImageURI ||= imageIdToURI(referencedImageId);
-    const { referencedImageURI: referencedImageURI } = viewRef;
+    const { referencedImageURI } = viewRef;
     const sliceIndex = this.imageKeyToIndexMap.get(referencedImageURI);
     if (sliceIndex === undefined) {
       log.error(`No image URI found for ${referencedImageURI}`);

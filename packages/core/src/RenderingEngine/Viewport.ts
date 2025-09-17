@@ -642,14 +642,19 @@ class Viewport {
       this.addActor(actor);
     });
 
-    const prevViewPresentation = this.getViewPresentation();
-    const prevViewRef = this.getViewReference();
-
-    this.resetCamera();
-
+    // In the case of loading a new volume with WADO-URI, we may not have loaded
+    // metadata for all imageIds, as they are streaming in. The
+    // getViewReference() call uses getClosestImageId() in its call stack, which
+    // will error in that scenario as it tries to loop over all imageId
+    // metadata. So only call getViewReference if necessary.
     if (!resetCamera) {
+      const prevViewPresentation = this.getViewPresentation();
+      const prevViewRef = this.getViewReference();
+      this.resetCamera();
       this.setViewReference(prevViewRef);
       this.setViewPresentation(prevViewPresentation);
+    } else {
+      this.resetCamera();
     }
 
     // Trigger ACTORS_CHANGED event after adding actors
@@ -1126,25 +1131,8 @@ class Viewport {
     if (imageData) {
       const extent = imageData.getExtent();
       const spacing = imageData.getSpacing();
-      // Determine which dimensions to use based on view plane normal
-      // The view plane normal tells us which axis we're looking along
-      const absNormal = viewPlaneNormal.map(Math.abs);
-      const maxIndex = absNormal.indexOf(Math.max(...absNormal));
-
-      // Based on which axis we're looking along, use the appropriate extents
-      if (maxIndex === 0) {
-        // Sagittal view (looking along X axis) - use Y for width, Z for height
-        widthWorld = (extent[3] - extent[2]) * spacing[1];
-        heightWorld = (extent[5] - extent[4]) * spacing[2];
-      } else if (maxIndex === 1) {
-        // Coronal view (looking along Y axis) - use X for width, Z for height
-        widthWorld = (extent[1] - extent[0]) * spacing[0];
-        heightWorld = (extent[5] - extent[4]) * spacing[2];
-      } else {
-        // Axial view (looking along Z axis) - use X for width, Y for height
-        widthWorld = (extent[1] - extent[0]) * spacing[0];
-        heightWorld = (extent[3] - extent[2]) * spacing[1];
-      }
+      widthWorld = (extent[1] - extent[0]) * spacing[0];
+      heightWorld = (extent[3] - extent[2]) * spacing[1];
     } else {
       ({ widthWorld, heightWorld } = this._getWorldDistanceViewUpAndViewRight(
         bounds,

@@ -26,6 +26,8 @@ const { ViewportType } = Enums;
 // ======== Constants ======= //
 const renderingEngineId = 'myRenderingEngine';
 const stackViewportId = 'CT_STACK';
+const stackViewportId2 = 'CT_STACK_2';
+const stackViewportId3 = 'CT_STACK_3';
 const volumeViewportId = 'CT_VOLUME';
 const toolGroupId = 'myToolGroup';
 
@@ -46,25 +48,63 @@ content.appendChild(viewportsContainer);
 // Create stack viewport element
 const stackElement = document.createElement('div');
 stackElement.id = 'cornerstone-stack-element';
-stackElement.style.width = '500px';
-stackElement.style.height = '500px';
+stackElement.style.width = '400px';
+stackElement.style.height = '400px';
 
 viewportsContainer.appendChild(stackElement);
+
+// Create second stack viewport element
+const stackElement2 = document.createElement('div');
+stackElement2.id = 'cornerstone-stack-element-2';
+stackElement2.style.width = '400px';
+stackElement2.style.height = '400px';
+
+viewportsContainer.appendChild(stackElement2);
+
+// Create third stack viewport element
+const stackElement3 = document.createElement('div');
+stackElement3.id = 'cornerstone-stack-element-3';
+stackElement3.style.width = '400px';
+stackElement3.style.height = '400px';
+
+viewportsContainer.appendChild(stackElement3);
 
 // Create volume viewport element
 const volumeElement = document.createElement('div');
 volumeElement.id = 'cornerstone-volume-element';
-volumeElement.style.width = '500px';
-volumeElement.style.height = '500px';
+volumeElement.style.width = '400px';
+volumeElement.style.height = '400px';
 
 viewportsContainer.appendChild(volumeElement);
 
+// Disable right-click context menu on all viewport elements
+[stackElement, stackElement2, stackElement3, volumeElement].forEach(
+  (element) => {
+    element.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      return false;
+    });
+  }
+);
+
 // Add labels
 const stackLabel = document.createElement('div');
-stackLabel.innerText = 'Stack Viewport';
+stackLabel.innerText = 'Stack Viewport 1';
 stackLabel.style.textAlign = 'center';
 stackLabel.style.marginTop = '10px';
 stackElement.appendChild(stackLabel);
+
+const stackLabel2 = document.createElement('div');
+stackLabel2.innerText = 'Stack Viewport 2';
+stackLabel2.style.textAlign = 'center';
+stackLabel2.style.marginTop = '10px';
+stackElement2.appendChild(stackLabel2);
+
+const stackLabel3 = document.createElement('div');
+stackLabel3.innerText = 'Stack Viewport 3';
+stackLabel3.style.textAlign = 'center';
+stackLabel3.style.marginTop = '10px';
+stackElement3.appendChild(stackLabel3);
 
 const volumeLabel = document.createElement('div');
 volumeLabel.innerText = 'Volume Viewport';
@@ -77,82 +117,76 @@ content.appendChild(info);
 
 const sharpeningInfo = document.createElement('div');
 info.appendChild(sharpeningInfo);
-sharpeningInfo.innerText = 'Sharpening: Disabled';
+sharpeningInfo.innerText = 'Sharpening: 0%';
 
-// Global sharpening state
-let sharpeningEnabled = false;
-let sharpeningIntensity = 0.5;
+// Add interaction instructions
+const instructionsContainer = document.createElement('div');
+instructionsContainer.style.marginTop = '20px';
+instructionsContainer.style.padding = '10px';
+instructionsContainer.style.backgroundColor = '#f0f0f0';
+instructionsContainer.style.borderRadius = '5px';
+content.appendChild(instructionsContainer);
 
-// Add sharpening controls
-addButtonToToolbar({
-  title: 'Toggle Sharpening',
-  onClick: () => {
-    sharpeningEnabled = !sharpeningEnabled;
+const instructionsTitle = document.createElement('h3');
+instructionsTitle.innerText = 'Interaction Instructions:';
+instructionsTitle.style.marginTop = '0';
+instructionsContainer.appendChild(instructionsTitle);
 
-    // Get the rendering engine
-    const renderingEngine = getRenderingEngine(renderingEngineId);
+const instructionsList = document.createElement('ul');
+instructionsList.style.marginTop = '10px';
+instructionsList.innerHTML = `
+  <li><strong>Left Click + Drag:</strong> Stack Scroll (navigate through slices)</li>
+  <li><strong>Right Click + Drag:</strong> Zoom In/Out</li>
+  <li><strong>Middle Click + Drag:</strong> Pan (move the image)</li>
+  <li><strong>Mouse Wheel:</strong> Stack Scroll (navigate through slices)</li>
+  <li><strong>Sharpening Slider:</strong> Adjust image sharpening (0-300%)</li>
+`;
+instructionsContainer.appendChild(instructionsList);
 
-    // Update stack viewport
-    const stackViewport = renderingEngine.getViewport(
-      stackViewportId
-    ) as Types.IStackViewport;
-
-    if (stackViewport) {
-      stackViewport.setProperties({
-        sharpening: {
-          enabled: sharpeningEnabled,
-          intensity: sharpeningIntensity,
-        },
-      });
-      stackViewport.render();
-    }
-
-    // Update volume viewport
-    const volumeViewport = renderingEngine.getViewport(
-      volumeViewportId
-    ) as Types.IVolumeViewport;
-
-    if (volumeViewport) {
-      volumeViewport.setProperties({
-        sharpening: {
-          enabled: sharpeningEnabled,
-          intensity: sharpeningIntensity,
-        },
-      });
-      volumeViewport.render();
-    }
-
-    sharpeningInfo.innerText = `Sharpening: ${sharpeningEnabled ? 'Enabled' : 'Disabled'} (Intensity: ${(sharpeningIntensity * 100).toFixed(0)}%)`;
-  },
-});
-
+// Add sharpening slider with a unique ID so we can reference it later
 addSliderToToolbar({
-  title: 'Sharpening Intensity',
+  id: 'sharpening-slider',
+  title: 'Sharpening',
   range: [0, 300],
-  defaultValue: 50,
-  onSelectedValueChange: (value) => {
-    sharpeningIntensity = value / 100;
-
-    if (!sharpeningEnabled) {
-      return;
-    }
-
+  defaultValue: 0,
+  onSelectedValueChange: (value: number) => {
     // Get the rendering engine
     const renderingEngine = getRenderingEngine(renderingEngineId);
 
-    // Update stack viewport
+    // Update stack viewport 1
     const stackViewport = renderingEngine.getViewport(
       stackViewportId
     ) as Types.IStackViewport;
 
     if (stackViewport) {
       stackViewport.setProperties({
-        sharpening: {
-          enabled: sharpeningEnabled,
-          intensity: sharpeningIntensity,
-        },
+        sharpening: value / 100, // Convert percentage to decimal
       });
       stackViewport.render();
+    }
+
+    // Update stack viewport 2
+    const stackViewport2 = renderingEngine.getViewport(
+      stackViewportId2
+    ) as Types.IStackViewport;
+
+    if (stackViewport2) {
+      stackViewport2.setProperties({
+        sharpening: value / 100, // Convert percentage to decimal
+      });
+      stackViewport2.render();
+    }
+
+    // Update stack viewport 3
+    const stackViewport3 = renderingEngine.getViewport(
+      stackViewportId3
+    ) as Types.IStackViewport;
+
+    if (stackViewport3) {
+      stackViewport3.setProperties({
+        sharpening: value / 100, // Convert percentage to decimal
+      });
+      stackViewport3.render();
     }
 
     // Update volume viewport
@@ -162,41 +196,66 @@ addSliderToToolbar({
 
     if (volumeViewport) {
       volumeViewport.setProperties({
-        sharpening: {
-          enabled: sharpeningEnabled,
-          intensity: sharpeningIntensity,
-        },
+        sharpening: value / 100, // Convert percentage to decimal
       });
       volumeViewport.render();
     }
 
-    sharpeningInfo.innerText = `Sharpening: ${sharpeningEnabled ? 'Enabled' : 'Disabled'} (Intensity: ${(sharpeningIntensity * 100).toFixed(0)}%)`;
+    sharpeningInfo.innerText = `Sharpening: ${value}%`;
   },
 });
 
 addButtonToToolbar({
   title: 'Reset',
   onClick: () => {
-    sharpeningEnabled = false;
-    sharpeningIntensity = 0.5;
+    // Reset the slider value
+    const slider = document.getElementById(
+      'sharpening-slider'
+    ) as HTMLInputElement;
+    if (slider) {
+      slider.value = '0';
+    }
 
     // Get the rendering engine
     const renderingEngine = getRenderingEngine(renderingEngineId);
 
-    // Reset stack viewport
+    // Reset stack viewport 1
     const stackViewport = renderingEngine.getViewport(
       stackViewportId
     ) as Types.IStackViewport;
 
     if (stackViewport) {
       stackViewport.setProperties({
-        sharpening: {
-          enabled: false,
-          intensity: 0.5,
-        },
+        sharpening: 0,
       });
       stackViewport.resetProperties();
       stackViewport.render();
+    }
+
+    // Reset stack viewport 2
+    const stackViewport2 = renderingEngine.getViewport(
+      stackViewportId2
+    ) as Types.IStackViewport;
+
+    if (stackViewport2) {
+      stackViewport2.setProperties({
+        sharpening: 0,
+      });
+      stackViewport2.resetProperties();
+      stackViewport2.render();
+    }
+
+    // Reset stack viewport 3
+    const stackViewport3 = renderingEngine.getViewport(
+      stackViewportId3
+    ) as Types.IStackViewport;
+
+    if (stackViewport3) {
+      stackViewport3.setProperties({
+        sharpening: 0,
+      });
+      stackViewport3.resetProperties();
+      stackViewport3.render();
     }
 
     // Reset volume viewport
@@ -206,16 +265,13 @@ addButtonToToolbar({
 
     if (volumeViewport) {
       volumeViewport.setProperties({
-        sharpening: {
-          enabled: false,
-          intensity: 0.5,
-        },
+        sharpening: 0,
       });
       volumeViewport.resetProperties();
       volumeViewport.render();
     }
 
-    sharpeningInfo.innerText = 'Sharpening: Disabled';
+    sharpeningInfo.innerText = 'Sharpening: 0%';
   },
 });
 
@@ -227,17 +283,38 @@ async function run() {
   await initDemo();
 
   // Initialize cornerstone tools
-  const { ToolGroupManager, StackScrollTool } = cornerstoneTools;
+  const { ToolGroupManager, StackScrollTool, ZoomTool, PanTool } =
+    cornerstoneTools;
 
   // Add tools to Cornerstone3D
   cornerstoneTools.addTool(StackScrollTool);
+  cornerstoneTools.addTool(ZoomTool);
+  cornerstoneTools.addTool(PanTool);
 
-  // Get Cornerstone imageIds and fetch metadata into RAM
+  // Get Cornerstone imageIds and fetch metadata into RAM for first series
   const imageIds = await createImageIdsAndCacheMetaData({
     StudyInstanceUID:
       '1.3.6.1.4.1.14519.5.2.1.7009.2403.334240657131972136850343327463',
     SeriesInstanceUID:
       '1.3.6.1.4.1.14519.5.2.1.7009.2403.226151125820845824875394858561',
+    wadoRsRoot: 'https://d14fa38qiwhyfd.cloudfront.net/dicomweb',
+  });
+
+  // Get imageIds for second series
+  const imageIds2 = await createImageIdsAndCacheMetaData({
+    StudyInstanceUID:
+      '1.3.6.1.4.1.14519.5.2.1.99.1071.55651399101931177647030363790032',
+    SeriesInstanceUID:
+      '1.3.6.1.4.1.14519.5.2.1.99.1071.87075509829481869121008947712950',
+    wadoRsRoot: 'https://d14fa38qiwhyfd.cloudfront.net/dicomweb',
+  });
+
+  // Get imageIds for third series
+  const imageIds3 = await createImageIdsAndCacheMetaData({
+    StudyInstanceUID:
+      '1.3.6.1.4.1.14519.5.2.1.1.84416332615988066829602832830236187384',
+    SeriesInstanceUID:
+      '1.3.6.1.4.1.14519.5.2.1.1.73259459389408720224591489579010582581',
     wadoRsRoot: 'https://d14fa38qiwhyfd.cloudfront.net/dicomweb',
   });
 
@@ -250,6 +327,22 @@ async function run() {
       viewportId: stackViewportId,
       type: ViewportType.STACK,
       element: stackElement,
+      defaultOptions: {
+        background: [0.2, 0, 0.2] as Types.Point3,
+      },
+    },
+    {
+      viewportId: stackViewportId2,
+      type: ViewportType.STACK,
+      element: stackElement2,
+      defaultOptions: {
+        background: [0.2, 0, 0.2] as Types.Point3,
+      },
+    },
+    {
+      viewportId: stackViewportId3,
+      type: ViewportType.STACK,
+      element: stackElement3,
       defaultOptions: {
         background: [0.2, 0, 0.2] as Types.Point3,
       },
@@ -281,6 +374,44 @@ async function run() {
   // Render the stack viewport
   stackViewport.render();
 
+  // Get the second stack viewport
+  const stackViewport2 = renderingEngine.getViewport(
+    stackViewportId2
+  ) as Types.IStackViewport;
+
+  // Set the stack on the second viewport
+  await stackViewport2.setStack(imageIds2);
+
+  // Set the VOI range with custom window/level for this viewport
+  stackViewport2.setProperties({
+    voiRange: {
+      lower: 2000 - 4100 / 2, // Level - Window/2
+      upper: 2000 + 4100 / 2, // Level + Window/2
+    },
+  });
+
+  // Render the second stack viewport
+  stackViewport2.render();
+
+  // Get the third stack viewport
+  const stackViewport3 = renderingEngine.getViewport(
+    stackViewportId3
+  ) as Types.IStackViewport;
+
+  // Set the stack on the third viewport
+  await stackViewport3.setStack(imageIds3);
+
+  // Set the VOI range with custom window/level for this viewport
+  stackViewport3.setProperties({
+    voiRange: {
+      lower: 5393 - 1751 / 2, // Level - Window/2
+      upper: 5393 + 1751 / 2, // Level + Window/2
+    },
+  });
+
+  // Render the third stack viewport
+  stackViewport3.render();
+
   // Get the volume viewport
   const volumeViewport = renderingEngine.getViewport(
     volumeViewportId
@@ -310,19 +441,36 @@ async function run() {
   // Create a tool group
   const toolGroup = ToolGroupManager.createToolGroup(toolGroupId);
 
-  // Add both viewports to the tool group
+  // Add all viewports to the tool group
   toolGroup.addViewport(stackViewportId, renderingEngineId);
+  toolGroup.addViewport(stackViewportId2, renderingEngineId);
+  toolGroup.addViewport(stackViewportId3, renderingEngineId);
   toolGroup.addViewport(volumeViewportId, renderingEngineId);
 
-  // Add the StackScrollMouseWheelTool to the tool group
+  // Add all tools to the tool group
   toolGroup.addTool(StackScrollTool.toolName);
+  toolGroup.addTool(ZoomTool.toolName);
+  toolGroup.addTool(PanTool.toolName);
 
-  // Set the tool as active for mouse wheel interaction
-  toolGroup.setToolActive(StackScrollTool.toolName, {
-    bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Wheel }],
-  });
+  // Set up tool bindings
+  // Left click (Primary) - Stack Scroll
   toolGroup.setToolActive(StackScrollTool.toolName, {
     bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Primary }],
+  });
+
+  // Right click (Secondary) - Zoom
+  toolGroup.setToolActive(ZoomTool.toolName, {
+    bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Secondary }],
+  });
+
+  // Middle click (Auxiliary/Middle) - Pan
+  toolGroup.setToolActive(PanTool.toolName, {
+    bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Auxiliary }],
+  });
+
+  // Mouse wheel - Stack Scroll
+  toolGroup.setToolActive(StackScrollTool.toolName, {
+    bindings: [{ mouseButton: cornerstoneTools.Enums.MouseBindings.Wheel }],
   });
 }
 
